@@ -204,3 +204,4 @@ To generate a standalone installable Android APK without Google Play Console ove
 
 ## 📄 License
 This project is licensed under the MIT License — see the LICENSE file for details.
+

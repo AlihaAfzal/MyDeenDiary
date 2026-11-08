@@ -1,18 +1,16 @@
 /**
  * Dynamic Backend API Configuration & Network Wrapper
  *
- * To connect to your Render.com live backend:
- * 1. Set EXPO_PUBLIC_API_URL in frontend-mobile/.env or in EAS Secrets / eas.json
- *    e.g. EXPO_PUBLIC_API_URL="https://my-deen-diary-backend.onrender.com"
- * 2. Or paste the Render URL directly into RENDER_BACKEND_URL below.
+ * Production Backend: https://mydeendiary.onrender.com
  */
 
-// Paste your Render URL here once generated (e.g. 'https://my-deen-diary-backend.onrender.com')
-export const RENDER_BACKEND_URL = '';
+// Live Render.com production backend URL
+export const RENDER_BACKEND_URL = 'https://mydeendiary.onrender.com';
 
 export const API_BASE_URL =
     process.env.EXPO_PUBLIC_API_URL ||
-    (RENDER_BACKEND_URL ? RENDER_BACKEND_URL : 'http://192.168.88.55:8000');
+    RENDER_BACKEND_URL ||
+    'https://mydeendiary.onrender.com';
 
 // Extended timeout (25s) for cloud backends (handles Render free tier cold-starts)
 const isCloudBackend =

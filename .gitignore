@@ -62,3 +62,4 @@ frontend-mobile/yarn-error.*
 frontend-mobile/*.tsbuildinfo
 frontend-mobile/ios/
 frontend-mobile/android/
+
