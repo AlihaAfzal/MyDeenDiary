@@ -40,10 +40,14 @@ export default function SignUpScreen({ navigation }: any) {
             return;
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
-        if (!emailRegex.test(cleanEmail)) {
-            Alert.alert('Invalid Email', 'Please provide a valid email address.');
-            setErrorMessage('Please provide a valid email address.');
+        // Strict, standard email format validation
+        const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+        const domainParts = cleanEmail.split('@');
+        const hasValidDomain = domainParts.length === 2 && domainParts[1].includes('.') && domainParts[1].split('.').pop()!.length >= 2;
+
+        if (!emailRegex.test(cleanEmail) || !hasValidDomain) {
+            Alert.alert('Invalid Email Format', 'Please enter a valid email address (e.g., yourname@example.com).');
+            setErrorMessage('Please enter a valid email address (e.g., yourname@example.com).');
             return;
         }
 

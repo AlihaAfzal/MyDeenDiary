@@ -220,10 +220,80 @@ export async function syncScheduledNotifications(settings: ReminderSetting[]): P
             }
         }
 
+        // Scheduled Recurring Friday morning reminder for Surah Al-Kahf (Every Friday at 08:30 AM)
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: 'Surah Al-Kahf Reminder • جمعۃ المبارک',
+                body: 'Blessed Friday! Take a moment to recite Surah Al-Kahf for light between the two Fridays.',
+                sound: reminderSoundEnabled ? true : false,
+                priority: Notifications.AndroidNotificationPriority.MAX,
+                data: {
+                    reminderId: 'friday_surah_kahf',
+                    title: 'Surah Al-Kahf Reminder',
+                    timestamp: Date.now(),
+                    channelId: REMINDER_CHANNEL_ID,
+                },
+            },
+            trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+                weekday: 6, // 6 = Friday in expo-notifications
+                hour: 8,
+                minute: 30,
+                channelId: REMINDER_CHANNEL_ID,
+            },
+        }).catch(() => {});
+
         await saveReminderSettings(updatedSettings);
         return updatedSettings;
     } catch {
         return settings;
+    }
+}
+
+export async function scheduleCustomDuaReminder(
+    duaId: string,
+    duaTitle: string,
+    hour: number,
+    minute: number
+): Promise<string | undefined> {
+    try {
+        const hasPermission = await requestNotificationPermissions();
+        if (!hasPermission) return undefined;
+
+        const reminderSoundEnabled = await soundHapticService.getReminderSoundEnabled();
+
+        const scheduledId = await Notifications.scheduleNotificationAsync({
+            content: {
+                title: `${duaTitle} Reminder`,
+                body: `Time for your daily recitation of "${duaTitle}".`,
+                sound: reminderSoundEnabled ? true : false,
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+                data: {
+                    reminderId: `custom_dua_${duaId}`,
+                    title: `${duaTitle} Reminder`,
+                    timestamp: Date.now(),
+                    channelId: REMINDER_CHANNEL_ID,
+                },
+            },
+            trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DAILY,
+                hour,
+                minute,
+                channelId: REMINDER_CHANNEL_ID,
+            },
+        });
+        return scheduledId;
+    } catch {
+        return undefined;
+    }
+}
+
+export async function cancelCustomDuaReminder(notificationId?: string): Promise<void> {
+    if (!notificationId) return;
+    try {
+        await Notifications.cancelScheduledNotificationAsync(notificationId);
+    } catch {
+        // Non-blocking fallback
     }
 }
 
