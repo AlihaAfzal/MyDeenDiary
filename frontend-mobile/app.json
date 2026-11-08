@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/expo-54.0.0.json",
+  "expo": {
+    "name": "My Deen Diary",
+    "slug": "my-deen-diary",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F9F8F4"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#F9F8F4"
+      },
+      "package": "com.alihaafzal.mydeendiary"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5afc94a6-371f-4e4a-b007-b35aa31e0282"
+      }
+    },
+    "plugins": [
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-font",
+      "expo-splash-screen",
+      "@react-native-community/datetimepicker",
+      "expo-audio"
+    ]
+  }
+}

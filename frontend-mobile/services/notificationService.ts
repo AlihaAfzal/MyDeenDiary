@@ -1,0 +1,344 @@
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import { soundHapticService } from './soundHapticsService';
+
+export const REMINDER_CHANNEL_ID = 'deen_diary_reminders_channel';
+
+// Set up notification display behavior when app is in foreground
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        priority: Notifications.AndroidNotificationPriority.MAX,
+    }),
+});
+
+export interface NotificationItem {
+    id: string;
+    title: string;
+    message: string;
+    body?: string;
+    timestamp: string;
+    type: 'prayer' | 'azkar' | 'reminder' | 'system';
+    read: boolean;
+    isRead?: boolean;
+}
+
+export interface ReminderSetting {
+    id: string;
+    title: string;
+    subtitle: string;
+    hour: number;
+    minute: number;
+    enabled: boolean;
+    type: 'preset' | 'custom';
+    notificationId?: string;
+}
+
+// Exactly 2 default presets: Morning Azkar (07:00 AM) & Evening Azkar (05:30 PM)
+export const DEFAULT_REMINDERS: ReminderSetting[] = [
+    {
+        id: 'morning_azkar',
+        title: 'Morning Azkar',
+        subtitle: 'Daily at 07:00 AM',
+        hour: 7,
+        minute: 0,
+        enabled: true,
+        type: 'preset',
+    },
+    {
+        id: 'evening_azkar',
+        title: 'Evening Azkar',
+        subtitle: 'Daily at 05:30 PM',
+        hour: 17,
+        minute: 30,
+        enabled: true,
+        type: 'preset',
+    },
+];
+
+const INITIAL_NOTIFICATIONS: NotificationItem[] = [
+    {
+        id: 'notif_1',
+        title: 'Morning Azkar Reminder',
+        message: 'Begin your day with authentic morning remembrance and protection.',
+        timestamp: 'Today, 07:00 AM',
+        type: 'azkar',
+        read: false,
+    },
+    {
+        id: 'notif_2',
+        title: 'Farz Prayers Check-in',
+        message: 'Remember to log your fulfilled prayers in the Daily Tracker.',
+        timestamp: 'Today, 01:15 PM',
+        type: 'prayer',
+        read: false,
+    },
+    {
+        id: 'notif_3',
+        title: 'Qaza Tracker Milestone',
+        message: 'Keep going! Consistently fulfilling 1-2 missed prayers daily builds your spiritual debt relief.',
+        timestamp: 'Yesterday, 06:30 PM',
+        type: 'reminder',
+        read: true,
+    },
+];
+
+export async function setupNotificationChannel(): Promise<void> {
+    if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync(REMINDER_CHANNEL_ID, {
+            name: 'Prayer & Azkar Reminders',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#0D5C3A',
+            sound: undefined,
+            enableVibrate: true,
+            showBadge: true,
+        });
+    }
+}
+
+export async function requestNotificationPermissions(): Promise<boolean> {
+    try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+        }
+        await setupNotificationChannel();
+        return finalStatus === 'granted';
+    } catch {
+        return false;
+    }
+}
+
+const getNotificationsStorageKey = (email?: string) => `userNotifications_${email || 'guest'}`;
+
+export async function loadNotifications(email?: string): Promise<NotificationItem[]> {
+    try {
+        const key = getNotificationsStorageKey(email);
+        const raw = await AsyncStorage.getItem(key);
+        if (raw) {
+            return JSON.parse(raw);
+        }
+        // Fallback to legacy key if available
+        const legacy = await AsyncStorage.getItem('user_notifications_list');
+        if (legacy) {
+            const parsed = JSON.parse(legacy);
+            await AsyncStorage.setItem(key, legacy).catch(() => {});
+            return parsed;
+        }
+        await AsyncStorage.setItem(key, JSON.stringify(INITIAL_NOTIFICATIONS)).catch(() => {});
+        return INITIAL_NOTIFICATIONS;
+    } catch {
+        return INITIAL_NOTIFICATIONS;
+    }
+}
+
+export async function saveNotifications(items: NotificationItem[], email?: string): Promise<void> {
+    const key = getNotificationsStorageKey(email);
+    await AsyncStorage.setItem(key, JSON.stringify(items)).catch(() => {});
+    await AsyncStorage.setItem('user_notifications_list', JSON.stringify(items)).catch(() => {});
+}
+
+export async function getUnreadNotificationCount(email?: string): Promise<number> {
+    try {
+        const items = await loadNotifications(email);
+        return items.filter((n) => !n.read && !n.isRead).length;
+    } catch {
+        return 0;
+    }
+}
+
+export async function markAllNotificationsAsRead(email?: string): Promise<NotificationItem[]> {
+    try {
+        const items = await loadNotifications(email);
+        const updated = items.map((n) => ({ ...n, read: true, isRead: true }));
+        await saveNotifications(updated, email);
+        return updated;
+    } catch {
+        return [];
+    }
+}
+
+export async function loadReminderSettings(): Promise<ReminderSetting[]> {
+    try {
+        const raw = await AsyncStorage.getItem('user_reminder_settings');
+        if (raw) {
+            const parsed: ReminderSetting[] = JSON.parse(raw);
+            // Strictly purge deprecated Fajr and Maghrib reminders if present from legacy caches
+            const filtered = parsed.filter(
+                (r) => r.id !== 'fajr_prayer' && r.id !== 'maghrib_prayer'
+            );
+            if (filtered.length !== parsed.length) {
+                await AsyncStorage.setItem('user_reminder_settings', JSON.stringify(filtered)).catch(() => {});
+            }
+            return filtered;
+        }
+        await AsyncStorage.setItem('user_reminder_settings', JSON.stringify(DEFAULT_REMINDERS));
+        return DEFAULT_REMINDERS;
+    } catch {
+        return DEFAULT_REMINDERS;
+    }
+}
+
+export async function saveReminderSettings(settings: ReminderSetting[]): Promise<void> {
+    await AsyncStorage.setItem('user_reminder_settings', JSON.stringify(settings)).catch(() => {});
+}
+
+export async function cancelReminderNotification(notificationId?: string): Promise<void> {
+    if (notificationId) {
+        try {
+            await Notifications.cancelScheduledNotificationAsync(notificationId);
+        } catch {
+            // Cancel notification fallback
+        }
+    }
+}
+
+export async function syncScheduledNotifications(settings: ReminderSetting[]): Promise<ReminderSetting[]> {
+    try {
+        const hasPermission = await requestNotificationPermissions();
+        if (!hasPermission) return settings;
+
+        const reminderSoundEnabled = await soundHapticService.getReminderSoundEnabled();
+
+        // Cancel existing and re-schedule active ones
+        await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+
+        const updatedSettings: ReminderSetting[] = [];
+
+        for (const rem of settings) {
+            if (rem.enabled) {
+                const reminderTitle = rem.title.toLowerCase().endsWith('reminder')
+                    ? rem.title
+                    : `${rem.title} Reminder`;
+
+                const scheduledId = await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: reminderTitle,
+                        body: 'It is time for your daily Azkar. Take a moment to remember Allah.',
+                        sound: reminderSoundEnabled ? true : false,
+                        priority: Notifications.AndroidNotificationPriority.MAX,
+                        data: {
+                            reminderId: rem.id,
+                            title: reminderTitle,
+                            timestamp: Date.now(),
+                            channelId: REMINDER_CHANNEL_ID,
+                        },
+                    },
+                    trigger: {
+                        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+                        hour: rem.hour,
+                        minute: rem.minute,
+                        channelId: REMINDER_CHANNEL_ID,
+                    },
+                });
+
+                updatedSettings.push({
+                    ...rem,
+                    notificationId: scheduledId,
+                });
+            } else {
+                updatedSettings.push({
+                    ...rem,
+                    notificationId: undefined,
+                });
+            }
+        }
+
+        await saveReminderSettings(updatedSettings);
+        return updatedSettings;
+    } catch {
+        return settings;
+    }
+}
+
+export async function scheduleTestNotification(
+    title: string,
+    body: string,
+    secondsOffset: number = 5
+): Promise<void> {
+    try {
+        const hasPermission = await requestNotificationPermissions();
+        if (!hasPermission) return;
+
+        const reminderSoundEnabled = await soundHapticService.getReminderSoundEnabled();
+
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title,
+                body,
+                sound: reminderSoundEnabled ? true : false,
+                priority: Notifications.AndroidNotificationPriority.MAX,
+                data: { channelId: REMINDER_CHANNEL_ID },
+            },
+            trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                seconds: Math.max(1, secondsOffset),
+                repeats: false,
+                channelId: REMINDER_CHANNEL_ID,
+            },
+        });
+    } catch {
+        // Test notification fallback
+    }
+}
+
+/**
+ * Global listener that catches incoming notifications (foreground or background trigger),
+ * prepends them into persistent AsyncStorage history, and notifies listeners so the unread badge updates.
+ */
+export function registerNotificationReceivedListener(
+    callback?: (notification: Notifications.Notification) => void
+): Notifications.EventSubscription {
+    return Notifications.addNotificationReceivedListener(async (notification) => {
+        try {
+            const email = (await AsyncStorage.getItem('userEmail')) || 'guest';
+            const key = getNotificationsStorageKey(email);
+            const content = notification.request.content;
+            const title = (content.title as string) || 'Daily Azkar Reminder';
+            const body =
+                (content.body as string) ||
+                'It is time for your daily Azkar. Take a moment to remember Allah.';
+            const message = body;
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const newNotifItem: NotificationItem = {
+                id: String(Date.now()),
+                title,
+                message,
+                body,
+                timestamp: `Today, ${timeStr}`,
+                read: false,
+                isRead: false,
+                type: 'reminder',
+            };
+
+            const raw = await AsyncStorage.getItem(key);
+            let list: NotificationItem[] = [];
+            if (raw) {
+                try {
+                    list = JSON.parse(raw);
+                } catch {
+                    list = [];
+                }
+            }
+
+            const updated = [newNotifItem, ...list];
+            await AsyncStorage.setItem(key, JSON.stringify(updated)).catch(() => {});
+            await AsyncStorage.setItem('user_notifications_list', JSON.stringify(updated)).catch(() => {});
+
+            if (callback) {
+                callback(notification);
+            }
+        } catch {
+            // Notification received listener fallback
+        }
+    });
+}

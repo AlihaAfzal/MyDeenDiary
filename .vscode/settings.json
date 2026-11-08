@@ -1,0 +1,20 @@
+{
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "app.json",
+        "*/app.json",
+        "frontend-mobile/app.json"
+      ],
+      "url": "./.vscode/schemas/expo-54.0.0.json"
+    },
+    {
+      "fileMatch": [
+        "eas.json",
+        "*/eas.json",
+        "frontend-mobile/eas.json"
+      ],
+      "url": "./.vscode/schemas/eas.json"
+    }
+  ]
+}
