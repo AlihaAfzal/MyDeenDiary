@@ -305,5 +305,68 @@ export const azkarCollections: Record<string, CategoryInfo> = {
                 reference: "Surah Az-Zukhruf (43:13-14) | Sahih Muslim (Travel)"
             }
         ]
+    },
+    hardship_anxiety: {
+        title: "Hardship & Anxiety",
+        titleUr: "پریشانی اور غم کی دعائیں",
+        subtitle: "Authentic Sunnah duas for times of distress, sorrow, depression, and hardship",
+        subtitleUr: "غم، پریشانی، بے چینی اور مشکل کے وقت کی مسنون دعائیں",
+        icon: "shield-checkmark-outline",
+        items: [
+            {
+                id: "h_yunus",
+                arabic: "لَا إِلَٰهَ إِلَّا أَنتَ سُبْحَانَكَ إِنِّي كُنتُ مِنَ الظَّالِمِينَ",
+                transliteration: "La ilaha illa Anta subhanaka inni kuntu minaz-zalimeen.",
+                english: "There is no deity except You; exalted are You. Indeed, I have been of the wrongdoers.",
+                urdu: "تیرے سوا کوئی معبود نہیں، تو پاک ہے، بے شک میں ہی ظالموں (قصورواروں) میں سے تھا۔",
+                repeat: 3,
+                reference: "Surah Al-Anbiya (21:87) | Jami` at-Tirmidhi (Dua Yunus: Relieves distress)"
+            },
+            {
+                id: "h_karb",
+                arabic: "لَا إِلَهَ إِلَّا اللَّهُ الْعَظِيمُ الْحَلِيمُ، لَا إِلَهَ إِلَّا اللَّهُ رَبُّ الْعَرْشِ الْعَظِيمِ، لَا إِلَهَ إِلَّا اللَّهُ رَبُّ السَّمَاوَاتِ وَرَبُّ الْأَرْضِ وَرَبُّ الْعَرْشِ الْكَرِيمِ",
+                transliteration: "La ilaha illallahul-'Azeemul-Haleem. La ilaha illallahu Rabbul-'Arshil-'Azeem. La ilaha illallahu Rabbus-samawati wa Rabbul-ardi wa Rabbul-'Arshil-Kareem.",
+                english: "None has the right to be worshipped except Allah, the Magnificent, the Forbearing. None has the right to be worshipped except Allah, Lord of the Magnificent Throne. None has the right to be worshipped except Allah, Lord of the heavens and Lord of the earth, and Lord of the Noble Throne.",
+                urdu: "اللہ کے سوا کوئی معبود نہیں جو عظمت والا اور بردبار ہے۔ اللہ کے سوا کوئی معبود نہیں جو عرش عظیم کا رب ہے۔ اللہ کے سوا کوئی معبود نہیں جو آسمانوں کا رب اور زمین کا رب اور عرش کریم کا رب ہے۔",
+                repeat: 1,
+                reference: "Sahih al-Bukhari & Sahih Muslim (Dua al-Karb at times of distress)"
+            },
+            {
+                id: "h_anxiety",
+                arabic: "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ، وَالْعَجْزِ وَالْكَسَلِ، وَالْبُخْلِ وَالْجُبْنِ، وَضَلَعِ الدَّيْنِ وَغَلَبَةِ الرِّجَالِ",
+                transliteration: "Allahumma inni a'udhu bika minal-hammi wal-hazan, wal-'ajzi wal-kasal, wal-bukhli wal-jubn, wa dala'id-dayni wa ghalabatir-rijal.",
+                english: "O Allah, I seek refuge in You from anxiety and sorrow, from inability and laziness, from miserliness and cowardice, from the burden of debt and from being overpowered by men.",
+                urdu: "اے اللہ! میں پریشانی اور غم سے، عاجزی اور سستی سے، بخل اور بزدلی سے، اور قرض کے بوجھ اور لوگوں کے دباؤ سے تیری پناہ مانگتا ہوں۔",
+                repeat: 1,
+                reference: "Sahih al-Bukhari (Supplication for removal of anxiety and grief)"
+            },
+            {
+                id: "h_rahmah",
+                arabic: "يَا حَيُّ يَا قَيُّومُ بِرَحْمَتِكَ أَسْتَغِيثُ، أَصْلِحْ لِي شَأْنِي كُلَّهُ، وَلَا تَكِلْنِي إِلَى نَفْسِي طَرْفَةَ عَيْنٍ",
+                transliteration: "Ya Hayyu Ya Qayyumu bi-rahmatika astagheeth, aslih li sha'ni kullahu, wa la takilni ila nafsi tarfata 'ayn.",
+                english: "O Ever-Living, O Sustainer of all, by Your mercy I seek relief. Rectify for me all of my affairs and do not leave me to myself even for the blink of an eye.",
+                urdu: "اے ہمیشہ زندہ رہنے والے! اے کائنات کے سنبھالنے والے! میں تیری رحمت کے وسیلے سے فریاد کرتا ہوں، میرے تمام احوال درست فرما دے اور پلک جھپکنے کی دیر بھی مجھے میرے نفس کے حوالے نہ کر۔",
+                repeat: 1,
+                reference: "Sunan an-Nasa'i & Al-Hakim (Authentic)"
+            },
+            {
+                id: "h_hasbunallah",
+                arabic: "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ",
+                transliteration: "Hasbunallahu wa ni'mal-wakeel.",
+                english: "Allah is sufficient for us, and He is the best Disposer of affairs.",
+                urdu: "ہمیں اللہ کافی ہے اور وہ بہترین کارساز ہے۔",
+                repeat: 7,
+                reference: "Surah Ali 'Imran (3:173) | Sahih al-Bukhari"
+            },
+            {
+                id: "h_ease",
+                arabic: "اللَّهُمَّ لَا سَهْلَ إِلَّا مَا جَعَلْتَهُ سَهْلاً، وَأَنْتَ تَجْعَلُ الْحَزْنَ إِذَا شِئْتَ سَهْلاً",
+                transliteration: "Allahumma la sahla illa ma ja'altahu sahla, wa Anta taj'alul-hazna idha shi'ta sahla.",
+                english: "O Allah, there is nothing easy except what You make easy, and You make the sorrow and difficulty easy whenever You will.",
+                urdu: "اے اللہ! کوئی چیز آسان نہیں مگر جسے تو آسان بنا دے، اور تو جب چاہے مشکل اور پریشانی کو آسان فرما دیتا ہے۔",
+                repeat: 1,
+                reference: "Sahih Ibn Hibban"
+            }
+        ]
     }
 };

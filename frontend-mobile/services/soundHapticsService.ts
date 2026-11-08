@@ -4,6 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const STORAGE_KEY_HAPTICS = 'userPref_haptics';
 export const STORAGE_KEY_SOUND = 'userPref_sound';
 export const STORAGE_KEY_REMINDER_SOUND = 'userPref_reminderSound';
+export const STORAGE_KEY_SOUND_PRESET = 'userPref_soundPreset';
+
+export type SoundPreset = 'wood' | 'soft' | 'haptic';
 
 let audioPlayerInstance: any = null;
 
@@ -113,6 +116,72 @@ export const soundHapticService = {
         } else if (soundOn) {
             try {
                 Vibration.vibrate(10);
+            } catch {
+                // Non-blocking fallback
+            }
+        }
+    },
+
+    async getSoundPreset(): Promise<SoundPreset> {
+        try {
+            const val = await AsyncStorage.getItem(STORAGE_KEY_SOUND_PRESET);
+            if (val === 'wood' || val === 'soft' || val === 'haptic') {
+                return val;
+            }
+            return 'wood';
+        } catch {
+            return 'wood';
+        }
+    },
+
+    async setSoundPreset(preset: SoundPreset): Promise<void> {
+        await AsyncStorage.setItem(STORAGE_KEY_SOUND_PRESET, preset);
+    },
+
+    async playTasbeehFeedback(): Promise<void> {
+        const preset = await this.getSoundPreset();
+        const soundOn = await this.getSoundEnabled();
+        const hapticOn = await this.getHapticsEnabled();
+
+        if (preset === 'haptic') {
+            if (hapticOn) {
+                try {
+                    Vibration.vibrate(30);
+                } catch {
+                    // Non-blocking fallback
+                }
+            }
+            return;
+        }
+
+        if (preset === 'soft') {
+            if (hapticOn) {
+                try {
+                    Vibration.vibrate(12);
+                } catch {
+                    // Non-blocking fallback
+                }
+            }
+            return;
+        }
+
+        // 'wood' bead preset: audio click + gentle bead vibration
+        if (soundOn) {
+            try {
+                const player = getClickAudioPlayer();
+                if (player) {
+                    if (typeof player.seekTo === 'function') {
+                        player.seekTo(0);
+                    }
+                    player.play();
+                }
+            } catch {
+                // Non-blocking fallback
+            }
+        }
+        if (hapticOn) {
+            try {
+                Vibration.vibrate(18);
             } catch {
                 // Non-blocking fallback
             }

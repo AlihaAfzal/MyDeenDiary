@@ -79,6 +79,10 @@ export default function SignUpScreen({ navigation }: any) {
 
                 await AsyncStorage.setItem('userEmail', cleanEmail);
                 await AsyncStorage.setItem('userName', cleanName);
+                // Fresh accounts initialize with clean, empty custom habits (no mock 'water glass' habit)
+                await AsyncStorage.setItem('userCustomHabits', JSON.stringify([]));
+                await AsyncStorage.setItem(`userNotifications_${cleanEmail}`, JSON.stringify([]));
+                await AsyncStorage.setItem('user_notifications_list', JSON.stringify([]));
 
                 navigation.replace('MainHub');
             } else {

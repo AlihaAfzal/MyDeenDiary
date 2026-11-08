@@ -24,8 +24,9 @@ import { API_BASE_URL } from './config';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useArabic } from '../context/ArabicContext';
-import { soundHapticService } from '../services/soundHapticsService';
+import { soundHapticService, SoundPreset } from '../services/soundHapticsService';
 import { loadReminderSettings, syncScheduledNotifications } from '../services/notificationService';
+import WalkthroughModal from '../components/WalkthroughModal';
 
 export default function ProfileScreen({ navigation }: any) {
     const { theme, setTheme, colors, isDark } = useTheme();
@@ -38,6 +39,7 @@ export default function ProfileScreen({ navigation }: any) {
     const [tempSelectedImage, setTempSelectedImage] = useState<string | null>(null);
     const [photoActionModalVisible, setPhotoActionModalVisible] = useState(false);
     const [imagePreviewModal, setImagePreviewModal] = useState(false);
+    const [walkthroughModalVisible, setWalkthroughModalVisible] = useState(false);
     const [profileMessage, setProfileMessage] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -45,6 +47,7 @@ export default function ProfileScreen({ navigation }: any) {
     // Preferences states
     const [hapticsEnabled, setHapticsEnabled] = useState(true);
     const [soundEnabled, setSoundEnabled] = useState(true);
+    const [soundPreset, setSoundPresetState] = useState<SoundPreset>('wood');
     const [reminderSoundEnabled, setReminderSoundEnabled] = useState(true);
 
     // Monthly History Modal States
@@ -84,9 +87,11 @@ export default function ProfileScreen({ navigation }: any) {
 
             const haptics = await soundHapticService.getHapticsEnabled();
             const sound = await soundHapticService.getSoundEnabled();
+            const preset = await soundHapticService.getSoundPreset();
             const remSound = await soundHapticService.getReminderSoundEnabled();
             setHapticsEnabled(haptics);
             setSoundEnabled(sound);
+            setSoundPresetState(preset);
             setReminderSoundEnabled(remSound);
 
             if (savedEmail) {
@@ -265,6 +270,12 @@ export default function ProfileScreen({ navigation }: any) {
         setSoundEnabled(value);
         await soundHapticService.setSoundEnabled(value);
         if (value) soundHapticService.playClick();
+    };
+
+    const handleSelectSoundPreset = async (preset: SoundPreset) => {
+        setSoundPresetState(preset);
+        await soundHapticService.setSoundPreset(preset);
+        await soundHapticService.playTasbeehFeedback();
     };
 
     const handleToggleReminderSound = async (value: boolean) => {
@@ -694,6 +705,56 @@ export default function ProfileScreen({ navigation }: any) {
                             />
                         </View>
 
+                        {/* Sound & Feedback Preset Chips */}
+                        <View style={styles.soundPresetWrap}>
+                            <Text style={[styles.soundPresetHeading, { color: colors.secondaryText, fontFamily: fonts.medium }, isUrdu && { fontSize: 13.5 }]}>
+                                {isUrdu ? 'تسبیح اور کاؤنٹر کا تاثر (پرسیٹ):' : 'Tasbeeh & Counter Feedback Preset:'}
+                            </Text>
+                            <View style={styles.soundPresetRow}>
+                                {[
+                                    { key: 'wood' as SoundPreset, label: 'Wood Bead', labelUr: 'لکڑی دانہ', icon: 'disc-outline' },
+                                    { key: 'soft' as SoundPreset, label: 'Soft Tap', labelUr: 'نرم کلک', icon: 'finger-print-outline' },
+                                    { key: 'haptic' as SoundPreset, label: 'Haptic Only', labelUr: 'صرف ارتعاش', icon: 'phone-portrait-outline' },
+                                ].map((p) => {
+                                    const isSelected = soundPreset === p.key;
+                                    return (
+                                        <TouchableOpacity
+                                            key={p.key}
+                                            style={[
+                                                styles.soundPresetChip,
+                                                {
+                                                    backgroundColor: isSelected ? colors.primary : colors.surface,
+                                                    borderColor: isSelected ? colors.primary : colors.border,
+                                                },
+                                            ]}
+                                            onPress={() => handleSelectSoundPreset(p.key)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Ionicons
+                                                name={p.icon as any}
+                                                size={14}
+                                                color={isSelected ? '#FFFFFF' : colors.text}
+                                                style={{ marginRight: 4 }}
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.soundPresetText,
+                                                    {
+                                                        color: isSelected ? '#FFFFFF' : colors.text,
+                                                        fontFamily: isSelected ? fonts.bold : fonts.regular,
+                                                        includeFontPadding: false,
+                                                    },
+                                                    isUrdu && { fontSize: 13 },
+                                                ]}
+                                            >
+                                                {isUrdu ? p.labelUr : p.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </View>
+
                         <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
 
                         {/* Reminder Alert Sound Toggle Switch */}
@@ -1061,6 +1122,24 @@ export default function ProfileScreen({ navigation }: any) {
                         <Ionicons name="chevron-forward" size={18} color={colors.textPlaceholder} />
                     </TouchableOpacity>
 
+                    {/* App Walkthrough Tour Button */}
+                    <TouchableOpacity
+                        style={[styles.interactiveRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                        onPress={() => {
+                            soundHapticService.triggerFeedback();
+                            setWalkthroughModalVisible(true);
+                        }}
+                        activeOpacity={0.8}
+                    >
+                        <View style={styles.rowLeft}>
+                            <Ionicons name="sparkles-outline" size={22} color={colors.primary} />
+                            <Text style={[styles.rowText, { color: colors.text, fontFamily: fonts.semiBold, includeFontPadding: false }, isUrdu && { fontSize: 17, lineHeight: 24 }]}>
+                                {isUrdu ? 'ایپ کا تعارف اور رہنمائی' : 'App Walkthrough & Tour'}
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={colors.textPlaceholder} />
+                    </TouchableOpacity>
+
                     {/* Account Sync Card */}
                     <View style={[styles.qrCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <Ionicons name="qr-code-outline" size={50} color={colors.primary} />
@@ -1379,6 +1458,12 @@ export default function ProfileScreen({ navigation }: any) {
                         </View>
                     </SafeAreaView>
                 </Modal>
+
+                {/* Introductory App Walkthrough Modal */}
+                <WalkthroughModal
+                    visible={walkthroughModalVisible}
+                    onClose={() => setWalkthroughModalVisible(false)}
+                />
             </View>
         </View>
     );
@@ -1831,5 +1916,30 @@ const styles = StyleSheet.create({
     },
     avatarInitials: {
         fontSize: 22,
+    },
+    soundPresetWrap: {
+        marginTop: 10,
+        marginBottom: 6,
+    },
+    soundPresetHeading: {
+        fontSize: 12.5,
+        marginBottom: 8,
+    },
+    soundPresetRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    soundPresetChip: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    soundPresetText: {
+        fontSize: 12,
     },
 });

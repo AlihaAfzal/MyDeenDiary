@@ -35,6 +35,7 @@ import QazaScreen from './screens/QazaScreen';
 import TasbeehScreen from './screens/TasbeehScreen';
 import NotificationScreen from './screens/NotificationScreen';
 import ProgressScreen from './screens/ProgressScreen';
+import ReflectionDiaryScreen from './screens/ReflectionDiaryScreen';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { ArabicProvider } from './context/ArabicContext';
@@ -130,6 +131,8 @@ function RootNavigator() {
                 <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
                 <Stack.Screen name="Progress" component={ProgressScreen} />
                 <Stack.Screen name="ProgressScreen" component={ProgressScreen} />
+                <Stack.Screen name="ReflectionDiary" component={ReflectionDiaryScreen} />
+                <Stack.Screen name="ReflectionDiaryScreen" component={ReflectionDiaryScreen} />
             </Stack.Navigator>
         </NavigationContainer>
     );

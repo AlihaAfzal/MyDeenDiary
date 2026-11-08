@@ -21,6 +21,7 @@ interface SideDrawerProps {
     navigation: any;
     streak: number;
     bestStreak: number;
+    onOpenWalkthrough?: () => void;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -32,6 +33,7 @@ export default function SideDrawer({
     navigation,
     streak,
     bestStreak,
+    onOpenWalkthrough,
 }: SideDrawerProps) {
     const { colors, isDark } = useTheme();
     const { t, isUrdu, fonts } = useLanguage();
@@ -226,6 +228,19 @@ export default function SideDrawer({
 
                                 <TouchableOpacity
                                     style={[styles.navRow, { borderBottomColor: colors.borderLight }]}
+                                    onPress={() => handleNavigate('ReflectionDiary')}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={[styles.iconBox, { backgroundColor: colors.background }]}>
+                                        <Ionicons name="journal-outline" size={18} color={colors.primary} />
+                                    </View>
+                                    <Text style={[styles.navRowText, { color: colors.text, fontFamily: fonts.semiBold, includeFontPadding: false }, isUrdu && { fontSize: 16, lineHeight: 22 }]}>
+                                        {isUrdu ? 'فکر و ڈائری' : 'Reflection Diary'}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.navRow, { borderBottomColor: colors.borderLight }]}
                                     onPress={() => handleNavigate('Monthly')}
                                     activeOpacity={0.7}
                                 >
@@ -260,6 +275,24 @@ export default function SideDrawer({
                                     </View>
                                     <Text style={[styles.navRowText, { color: colors.text, fontFamily: fonts.semiBold, includeFontPadding: false }, isUrdu && { fontSize: 16, lineHeight: 22 }]}>
                                         {t('profileTab')}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.navRow, { borderBottomColor: colors.borderLight }]}
+                                    onPress={() => {
+                                        onClose();
+                                        if (onOpenWalkthrough) {
+                                            onOpenWalkthrough();
+                                        }
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={[styles.iconBox, { backgroundColor: colors.background }]}>
+                                        <Ionicons name="sparkles-outline" size={18} color={colors.primary} />
+                                    </View>
+                                    <Text style={[styles.navRowText, { color: colors.text, fontFamily: fonts.semiBold, includeFontPadding: false }, isUrdu && { fontSize: 16, lineHeight: 22 }]}>
+                                        {isUrdu ? 'ایپ کا تعارف' : 'App Walkthrough'}
                                     </Text>
                                 </TouchableOpacity>
                             </View>

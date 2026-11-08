@@ -41,6 +41,7 @@ export interface QazaState {
 
 export interface QazaHistoryRecord {
     id: string;
+    prayerKey?: keyof QazaState;
     prayerName: string;
     timestamp: number;
     dateString: string;
@@ -103,6 +104,15 @@ export default function QazaScreen({ navigation }: any) {
 
     // History Modal State
     const [historyModalVisible, setHistoryModalVisible] = useState<boolean>(false);
+
+    // Temporary Undo Action State
+    const [undoAction, setUndoAction] = useState<{
+        prayerKey: keyof QazaState;
+        prayerName: string;
+        historyId: string;
+        message?: string;
+    } | null>(null);
+    const [undoTimer, setUndoTimer] = useState<any>(null);
 
     const showNotice = (msg: string, success: boolean = true) => {
         setStatusMessage(msg);
@@ -221,6 +231,7 @@ export default function QazaScreen({ navigation }: any) {
         const now = new Date();
         const newRecord: QazaHistoryRecord = {
             id: `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+            prayerKey,
             prayerName: name,
             timestamp: Date.now(),
             dateString: now.toISOString().split('T')[0],
@@ -231,6 +242,7 @@ export default function QazaScreen({ navigation }: any) {
         setHistory(updatedHistory);
         const histKey = getHistoryKey(userEmail);
         await AsyncStorage.setItem(histKey, JSON.stringify(updatedHistory)).catch(() => { });
+        return newRecord;
     };
 
     // Quick Action Button: "+1 Made Up" / "-1"
@@ -252,10 +264,112 @@ export default function QazaScreen({ navigation }: any) {
         };
 
         await persistCounts(updated);
-        await appendHistoryRecord(prayerKey);
+        const newRecord = await appendHistoryRecord(prayerKey);
 
-        const prayerName = PRAYERS.find((p) => p.key === prayerKey)?.nameEn || prayerKey;
+        const prayerDef = PRAYERS.find((p) => p.key === prayerKey);
+        const prayerName = prayerDef ? (isUrdu ? prayerDef.nameUr : prayerDef.nameEn) : prayerKey;
         showNotice(isUrdu ? `${prayerName} ادا کی گئی۔ باقی: ${updated[prayerKey].remaining}` : `${prayerName} fulfilled! Remaining: ${updated[prayerKey].remaining}`);
+
+        // Set temporary Undo snackbar
+        if (undoTimer) clearTimeout(undoTimer);
+        setUndoAction({
+            prayerKey,
+            prayerName,
+            historyId: newRecord.id,
+            message: isUrdu ? `${prayerName} ادا کی گئی۔` : `${prayerName} marked as prayed.`,
+        });
+        const timer = setTimeout(() => {
+            setUndoAction(null);
+        }, 6000);
+        setUndoTimer(timer);
+    };
+
+    // Undo last fulfilled prayer action
+    const handleUndoLastAction = async () => {
+        if (!undoAction) return;
+        soundHapticService.triggerFeedback();
+        if (undoTimer) clearTimeout(undoTimer);
+
+        const { prayerKey, prayerName, historyId } = undoAction;
+        const cur = counts[prayerKey];
+        const updated: QazaState = {
+            ...counts,
+            [prayerKey]: {
+                remaining: cur.remaining + 1,
+                completed: Math.max(0, cur.completed - 1),
+            },
+        };
+
+        await persistCounts(updated);
+
+        // Remove from history
+        const histKey = getHistoryKey(userEmail);
+        const updatedHist = history.filter((h) => h.id !== historyId);
+        setHistory(updatedHist);
+        await AsyncStorage.setItem(histKey, JSON.stringify(updatedHist)).catch(() => { });
+
+        setUndoAction(null);
+        showNotice(
+            isUrdu
+                ? `${prayerName} کا اندراج واپس لے لیا گیا`
+                : `${prayerName} fulfillment undone! Restored to backlog.`
+        );
+    };
+
+    // Revert a historical record from History view
+    const handleRevertHistoryRecord = (item: QazaHistoryRecord) => {
+        soundHapticService.triggerFeedback();
+        // Resolve prayerKey
+        let targetKey = item.prayerKey;
+        if (!targetKey) {
+            const found = PRAYERS.find(
+                (p) =>
+                    p.nameEn.toLowerCase() === item.prayerName.toLowerCase() ||
+                    p.nameUr === item.prayerName ||
+                    item.prayerName.toLowerCase().includes(p.nameEn.toLowerCase())
+            );
+            targetKey = found?.key;
+        }
+
+        Alert.alert(
+            isUrdu ? 'قضا اندراج واپس لیں' : 'Revert Qaza Entry',
+            isUrdu
+                ? `کیا آپ ${item.prayerName} کا اندراج واپس لینا چاہتے ہیں؟ یہ ۱ نماز قضا میں دوبارہ شامل ہو جائے گی۔`
+                : `Revert this fulfillment of ${item.prayerName}? This will restore 1 prayer back into your backlog.`,
+            [
+                { text: isUrdu ? 'منسوخ' : 'Cancel', style: 'cancel' },
+                {
+                    text: isUrdu ? 'واپس لیں' : 'Revert',
+                    style: 'destructive',
+                    onPress: async () => {
+                        if (targetKey && counts[targetKey]) {
+                            const cur = counts[targetKey];
+                            const updatedCounts: QazaState = {
+                                ...counts,
+                                [targetKey]: {
+                                    remaining: cur.remaining + 1,
+                                    completed: Math.max(0, cur.completed - 1),
+                                },
+                            };
+                            await persistCounts(updatedCounts);
+                        }
+
+                        // Remove from history
+                        const histKey = getHistoryKey(userEmail);
+                        const updatedHist = history.filter((h) => h.id !== item.id);
+                        setHistory(updatedHist);
+                        await AsyncStorage.setItem(histKey, JSON.stringify(updatedHist)).catch(() => { });
+
+                        soundHapticService.triggerFeedback();
+                        showNotice(
+                            isUrdu
+                                ? `${item.prayerName} کا اندراج کامیابی سے واپس کر دیا گیا`
+                                : `Reverted ${item.prayerName} entry successfully.`
+                        );
+                    },
+                },
+            ]
+        );
     };
 
     // Open Detailed Prayer Modal
@@ -788,13 +902,16 @@ export default function QazaScreen({ navigation }: any) {
                                         </Text>
                                     </View>
 
-                                    {/* Quick Action Button: +1 Made Up */}
+                                    {/* Quick Action Button: Inactive/Unfilled by default to indicate completion is needed */}
                                     <TouchableOpacity
                                         style={[
                                             styles.quickActionBtn,
                                             {
-                                                backgroundColor: isZero ? (isDark ? '#232E2A' : '#F3F4F6') : (isDark ? '#1E3A2B' : '#EAF6EF'),
+                                                backgroundColor: isZero
+                                                    ? (isDark ? '#232E2A' : '#F3F4F6')
+                                                    : 'transparent',
                                                 borderColor: isZero ? colors.border : colors.primary,
+                                                borderWidth: 1.5,
                                             },
                                         ]}
                                         disabled={isZero}
@@ -802,10 +919,10 @@ export default function QazaScreen({ navigation }: any) {
                                         activeOpacity={0.7}
                                     >
                                         <Ionicons
-                                            name="checkmark-circle-outline"
-                                            size={14}
+                                            name={isZero ? "checkmark-done-circle" : "ellipse-outline"}
+                                            size={15}
                                             color={isZero ? colors.secondaryText : colors.primary}
-                                            style={{ marginRight: 4 }}
+                                            style={{ marginRight: 5 }}
                                         />
                                         <Text
                                             style={[
@@ -815,10 +932,12 @@ export default function QazaScreen({ navigation }: any) {
                                                     fontFamily: fonts.bold,
                                                     includeFontPadding: false,
                                                 },
-                                                isUrdu && { fontSize: 15 },
+                                                isUrdu && { fontSize: 14 },
                                             ]}
                                         >
-                                            {isUrdu ? '+1 ادا کی' : '+1 Made Up'}
+                                            {isZero
+                                                ? (isUrdu ? 'مکمل' : 'All Clear')
+                                                : (isUrdu ? '+1 قضا ادا کی' : '+1 Mark Prayed')}
                                         </Text>
                                     </TouchableOpacity>
                                 </TouchableOpacity>
@@ -845,6 +964,24 @@ export default function QazaScreen({ navigation }: any) {
                         )}
                     </TouchableOpacity>
                 </ScrollView>
+
+                {/* Floating Undo Snackbar for quick accidental taps */}
+                {undoAction && (
+                    <View style={[styles.undoSnackbar, { backgroundColor: isDark ? '#1F2937' : '#111827' }]}>
+                        <View style={styles.undoSnackbarLeft}>
+                            <Ionicons name="checkmark-circle" size={18} color="#10B981" style={{ marginRight: 8 }} />
+                            <Text style={[styles.undoSnackbarText, { color: '#FFFFFF', fontFamily: fonts.medium, includeFontPadding: false }, isUrdu && { fontSize: 14 }]} numberOfLines={1}>
+                                {undoAction.message}
+                            </Text>
+                        </View>
+                        <TouchableOpacity style={styles.undoButton} onPress={handleUndoLastAction} activeOpacity={0.8}>
+                            <Ionicons name="arrow-undo" size={14} color="#FBBF24" style={{ marginRight: 4 }} />
+                            <Text style={[styles.undoButtonText, { fontFamily: fonts.bold, includeFontPadding: false }, isUrdu && { fontSize: 14 }]}>
+                                {isUrdu ? 'واپس لیں' : 'Undo'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
 
             {/* =========================================================================
@@ -1100,6 +1237,16 @@ export default function QazaScreen({ navigation }: any) {
                                                             {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </Text>
                                                     </View>
+                                                    <TouchableOpacity
+                                                        style={[styles.historyRevertBtn, { borderColor: colors.borderLight }]}
+                                                        onPress={() => handleRevertHistoryRecord(item)}
+                                                        activeOpacity={0.7}
+                                                    >
+                                                        <Ionicons name="arrow-undo-outline" size={13} color={colors.secondaryText} style={{ marginRight: 3 }} />
+                                                        <Text style={[styles.historyRevertBtnText, { color: colors.secondaryText, fontFamily: fonts.medium, includeFontPadding: false }, isUrdu && { fontSize: 13 }]}>
+                                                            {isUrdu ? 'واپس لیں' : 'Revert'}
+                                                        </Text>
+                                                    </TouchableOpacity>
                                                 </View>
                                             ))}
                                         </View>
@@ -1127,6 +1274,16 @@ export default function QazaScreen({ navigation }: any) {
                                                             {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </Text>
                                                     </View>
+                                                    <TouchableOpacity
+                                                        style={[styles.historyRevertBtn, { borderColor: colors.borderLight }]}
+                                                        onPress={() => handleRevertHistoryRecord(item)}
+                                                        activeOpacity={0.7}
+                                                    >
+                                                        <Ionicons name="arrow-undo-outline" size={13} color={colors.secondaryText} style={{ marginRight: 3 }} />
+                                                        <Text style={[styles.historyRevertBtnText, { color: colors.secondaryText, fontFamily: fonts.medium, includeFontPadding: false }, isUrdu && { fontSize: 13 }]}>
+                                                            {isUrdu ? 'واپس لیں' : 'Revert'}
+                                                        </Text>
+                                                    </TouchableOpacity>
                                                 </View>
                                             ))}
                                         </View>
@@ -1154,6 +1311,16 @@ export default function QazaScreen({ navigation }: any) {
                                                             {item.dateString} - {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </Text>
                                                     </View>
+                                                    <TouchableOpacity
+                                                        style={[styles.historyRevertBtn, { borderColor: colors.borderLight }]}
+                                                        onPress={() => handleRevertHistoryRecord(item)}
+                                                        activeOpacity={0.7}
+                                                    >
+                                                        <Ionicons name="arrow-undo-outline" size={13} color={colors.secondaryText} style={{ marginRight: 3 }} />
+                                                        <Text style={[styles.historyRevertBtnText, { color: colors.secondaryText, fontFamily: fonts.medium, includeFontPadding: false }, isUrdu && { fontSize: 13 }]}>
+                                                            {isUrdu ? 'واپس لیں' : 'Revert'}
+                                                        </Text>
+                                                    </TouchableOpacity>
                                                 </View>
                                             ))}
                                         </View>
@@ -1709,5 +1876,57 @@ const styles = StyleSheet.create({
     },
     clearHistoryBtnText: {
         fontSize: 13,
+    },
+    historyRevertBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        borderWidth: 1,
+        marginLeft: 8,
+    },
+    historyRevertBtnText: {
+        fontSize: 11.5,
+    },
+    undoSnackbar: {
+        position: 'absolute',
+        bottom: 16,
+        left: 16,
+        right: 16,
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 6,
+        zIndex: 99,
+    },
+    undoSnackbarLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        marginRight: 8,
+    },
+    undoSnackbarText: {
+        fontSize: 13,
+        flex: 1,
+    },
+    undoButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(251, 191, 36, 0.15)',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 6,
+    },
+    undoButtonText: {
+        fontSize: 12.5,
+        color: '#FBBF24',
     },
 });

@@ -22,6 +22,7 @@ import { soundHapticService } from '../services/soundHapticsService';
 import { getDailyAyah } from '../data/dailyAyahs';
 import { getUnreadNotificationCount, registerNotificationReceivedListener } from '../services/notificationService';
 import SideDrawer from '../components/SideDrawer';
+import WalkthroughModal from '../components/WalkthroughModal';
 
 const PRAYERS_KEYS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
 
@@ -37,6 +38,7 @@ export default function DashboardScreen({ navigation }: any) {
     const [streak, setStreak] = useState(7);
     const [bestStreak, setBestStreak] = useState(14);
     const [drawerVisible, setDrawerVisible] = useState(false);
+    const [walkthroughVisible, setWalkthroughVisible] = useState(false);
 
     const [prayers, setPrayers] = useState<Record<string, boolean>>({
         fajr: false,
@@ -51,10 +53,7 @@ export default function DashboardScreen({ navigation }: any) {
     const [uiMessage, setUiMessage] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const [customHabits, setCustomHabits] = useState<Array<{ id: string; name: string; checked: boolean }>>([
-        { id: 'quran', name: 'Quran Reading', checked: false },
-        { id: 'water', name: '8 Glasses Water', checked: false },
-    ]);
+    const [customHabits, setCustomHabits] = useState<Array<{ id: string; name: string; checked: boolean }>>([]);
     const [newHabitText, setNewHabitText] = useState('');
 
     const today = new Date();
@@ -118,15 +117,33 @@ export default function DashboardScreen({ navigation }: any) {
                 const savedHabits = await AsyncStorage.getItem('userCustomHabits');
                 if (savedHabits) {
                     try {
-                        setCustomHabits(JSON.parse(savedHabits));
+                        const parsed = JSON.parse(savedHabits);
+                        const clean = Array.isArray(parsed) ? parsed.filter((h: any) => h && h.id !== 'water') : [];
+                        setCustomHabits(clean);
                     } catch {
-                        // Ignore parse error
+                        setCustomHabits([]);
                     }
+                } else {
+                    setCustomHabits([]);
                 }
 
                 // Dynamically fetch unread notification count
                 const unread = await getUnreadNotificationCount(email || undefined);
                 setUnreadCount(unread);
+
+                // Load today's saved reflection if available
+                try {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const reflKey = `userReflections_${email || 'guest'}`;
+                    const rawRefls = await AsyncStorage.getItem(reflKey);
+                    if (rawRefls) {
+                        const parsedRefls = JSON.parse(rawRefls);
+                        const match = parsedRefls.find((r: any) => r.date === todayStr);
+                        if (match && match.text) {
+                            setReflection(match.text);
+                        }
+                    }
+                } catch {}
             };
             loadUserData();
         }, [])
@@ -138,6 +155,14 @@ export default function DashboardScreen({ navigation }: any) {
             const unread = await getUnreadNotificationCount(email || undefined);
             setUnreadCount(unread);
         });
+
+        // First-time user onboarding walkthrough check
+        AsyncStorage.getItem('hasSeenWalkthrough').then((seen) => {
+            if (!seen) {
+                setWalkthroughVisible(true);
+            }
+        }).catch(() => {});
+
         return () => {
             sub.remove();
         };
@@ -222,6 +247,28 @@ export default function DashboardScreen({ navigation }: any) {
 
             if (response.ok) {
                 setUiMessage(t('progressUpdated'));
+
+                // Save reflection entry into local Reflection Diary history
+                if (reflection && reflection.trim()) {
+                    try {
+                        const reflKey = `userReflections_${userEmail || 'guest'}`;
+                        const rawRefls = await AsyncStorage.getItem(reflKey);
+                        let reflList = rawRefls ? JSON.parse(rawRefls) : [];
+                        const existingIdx = reflList.findIndex((r: any) => r.date === todayDateStr);
+                        const item = {
+                            id: existingIdx >= 0 ? reflList[existingIdx].id : `refl_${Date.now()}`,
+                            date: todayDateStr,
+                            text: reflection.trim(),
+                            updatedAt: new Date().toISOString(),
+                        };
+                        if (existingIdx >= 0) {
+                            reflList[existingIdx] = item;
+                        } else {
+                            reflList = [item, ...reflList];
+                        }
+                        await AsyncStorage.setItem(reflKey, JSON.stringify(reflList));
+                    } catch {}
+                }
 
                 // If all 5 prayers checked, update streak
                 const allPrayersDone = prayers.fajr && prayers.dhuhr && prayers.asr && prayers.maghrib && prayers.isha;
@@ -426,10 +473,69 @@ export default function DashboardScreen({ navigation }: any) {
                             <Ionicons name="chevron-forward" size={18} color={colors.primary} />
                         </TouchableOpacity>
 
+                        {/* Monthly Prayer Log & History Shortcut Banner */}
+                        <TouchableOpacity
+                            style={[
+                                styles.monthlyLogBanner,
+                                {
+                                    backgroundColor: colors.surface,
+                                    borderColor: colors.border,
+                                },
+                            ]}
+                            onPress={() => {
+                                soundHapticService.triggerFeedback();
+                                navigation.navigate('Monthly');
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <View style={styles.monthlyLogLeft}>
+                                <View style={[styles.monthlyLogIconWrap, { backgroundColor: isDark ? '#1F2C26' : '#EAF5EE', borderColor: isDark ? '#2B4037' : '#D1E7DD' }]}>
+                                    <Ionicons name="calendar" size={18} color={colors.primary} />
+                                </View>
+                                <View style={{ flex: 1, marginLeft: 10 }}>
+                                    <Text
+                                        style={[
+                                            styles.monthlyLogTitle,
+                                            { color: colors.text, fontFamily: fonts.bold, includeFontPadding: false },
+                                            isUrdu && { fontSize: 16, lineHeight: 22 },
+                                        ]}
+                                    >
+                                        {isUrdu ? 'ماہانہ نماز لاگ اور تاریخ' : 'Monthly Prayer Log & History'}
+                                    </Text>
+                                    <Text
+                                        style={[
+                                            styles.monthlyLogSub,
+                                            { color: colors.secondaryText, fontFamily: fonts.regular, includeFontPadding: false },
+                                            isUrdu && { fontSize: 13, lineHeight: 18 },
+                                        ]}
+                                    >
+                                        {isUrdu ? 'مکمل مہینے کا ریکارڈ، نمازوں کی تاریخ اور حاضری دیکھیں' : 'View full calendar attendance & habit records'}
+                                    </Text>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                        </TouchableOpacity>
+
                         {/* Farz Prayers */}
-                        <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: fonts.bold, includeFontPadding: false }, isUrdu && { fontSize: 18, lineHeight: 25 }]}>
-                            {t('farzPrayers')}
-                        </Text>
+                        <View style={styles.sectionHeaderRow}>
+                            <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: fonts.bold, includeFontPadding: false, marginBottom: 0 }, isUrdu && { fontSize: 18, lineHeight: 25 }]}>
+                                {t('farzPrayers')}
+                            </Text>
+                            <TouchableOpacity
+                                style={[styles.sectionHeaderPill, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+                                onPress={() => {
+                                    soundHapticService.triggerFeedback();
+                                    navigation.navigate('Monthly');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="calendar-outline" size={13} color={colors.primary} style={{ marginRight: 4 }} />
+                                <Text style={[styles.sectionHeaderPillText, { color: colors.primary, fontFamily: fonts.semiBold, includeFontPadding: false }, isUrdu && { fontSize: 12 }]}>
+                                    {isUrdu ? 'ماہانہ لاگ' : 'Monthly Log'}
+                                </Text>
+                                <Ionicons name="chevron-forward" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                            </TouchableOpacity>
+                        </View>
                         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                             {PRAYERS_KEYS.map((key) => (
                                 <TouchableOpacity
@@ -630,9 +736,25 @@ export default function DashboardScreen({ navigation }: any) {
                         </View>
 
                         {/* Daily Reflection */}
-                        <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: fonts.bold, includeFontPadding: false }, isUrdu && { fontSize: 18, lineHeight: 25 }]}>
-                            {t('dailyReflection')}
-                        </Text>
+                        <View style={styles.sectionHeaderRow}>
+                            <Text style={[styles.sectionTitle, { color: colors.text, fontFamily: fonts.bold, includeFontPadding: false, marginBottom: 0 }, isUrdu && { fontSize: 18, lineHeight: 25 }]}>
+                                {t('dailyReflection')}
+                            </Text>
+                            <TouchableOpacity
+                                style={[styles.sectionHeaderPill, { backgroundColor: isDark ? '#2C2719' : '#FCF8EE', borderColor: colors.gold }]}
+                                onPress={() => {
+                                    soundHapticService.triggerFeedback();
+                                    navigation.navigate('ReflectionDiary');
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="journal-outline" size={13} color={colors.goldDark} style={{ marginRight: 4 }} />
+                                <Text style={[styles.sectionHeaderPillText, { color: colors.goldDark, fontFamily: fonts.semiBold, includeFontPadding: false }, isUrdu && { fontSize: 12 }]}>
+                                    {isUrdu ? 'فکر و ڈائری' : 'Reflection Diary'}
+                                </Text>
+                                <Ionicons name="chevron-forward" size={12} color={colors.goldDark} style={{ marginLeft: 2 }} />
+                            </TouchableOpacity>
+                        </View>
                         <TextInput
                             style={[
                                 styles.journalInput,
@@ -676,6 +798,13 @@ export default function DashboardScreen({ navigation }: any) {
                 navigation={navigation}
                 streak={streak}
                 bestStreak={bestStreak}
+                onOpenWalkthrough={() => setWalkthroughVisible(true)}
+            />
+
+            {/* Introductory App Walkthrough Modal */}
+            <WalkthroughModal
+                visible={walkthroughVisible}
+                onClose={() => setWalkthroughVisible(false)}
             />
         </View>
     );
@@ -1035,5 +1164,56 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 15,
         letterSpacing: 0.3,
+    },
+    monthlyLogBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 14,
+        borderRadius: 14,
+        borderWidth: 1,
+        marginBottom: 16,
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+    },
+    monthlyLogLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    monthlyLogIconWrap: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    monthlyLogTitle: {
+        fontSize: 14.5,
+    },
+    monthlyLogSub: {
+        fontSize: 12,
+        marginTop: 2,
+    },
+    sectionHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    sectionHeaderPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 14,
+        borderWidth: 1,
+    },
+    sectionHeaderPillText: {
+        fontSize: 12,
     },
 });

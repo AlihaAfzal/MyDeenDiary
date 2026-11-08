@@ -356,6 +356,31 @@ def get_monthly_matrix(email: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ----------------------------------------------------
+# 6.1 REFLECTIONS CHRONOLOGICAL GET ENDPOINT
+# ----------------------------------------------------
+@app.get("/reflections/{email}")
+def get_user_reflections(email: str):
+    clean_email = email.strip().lower()
+    try:
+        docs = db.collection("user_tracking").where("email", "==", clean_email).stream()
+        reflections = []
+        for doc in docs:
+            data = doc.to_dict()
+            text = (data.get("reflection_text") or "").strip()
+            date_str = data.get("date") or data.get("date_str") or ""
+            if text:
+                reflections.append({
+                    "id": doc.id,
+                    "date": date_str,
+                    "text": text,
+                    "updated_at": data.get("updated_at") or date_str
+                })
+        reflections.sort(key=lambda r: r["date"], reverse=True)
+        return {"status": "success", "reflections": reflections}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ----------------------------------------------------
 # 7. PROFILE GET & UPDATE ENDPOINTS
 # ----------------------------------------------------
 @app.get("/profile/{email}")

@@ -39,14 +39,14 @@ export interface ReminderSetting {
     notificationId?: string;
 }
 
-// Exactly 2 default presets: Morning Azkar (07:00 AM) & Evening Azkar (05:30 PM)
+// Exactly 2 default presets: Morning Azkar (05:30 AM) & Evening Azkar (05:30 PM)
 export const DEFAULT_REMINDERS: ReminderSetting[] = [
     {
         id: 'morning_azkar',
         title: 'Morning Azkar',
-        subtitle: 'Daily at 07:00 AM',
-        hour: 7,
-        minute: 0,
+        subtitle: 'Daily at 05:30 AM',
+        hour: 5,
+        minute: 30,
         enabled: true,
         type: 'preset',
     },
@@ -61,32 +61,8 @@ export const DEFAULT_REMINDERS: ReminderSetting[] = [
     },
 ];
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-    {
-        id: 'notif_1',
-        title: 'Morning Azkar Reminder',
-        message: 'Begin your day with authentic morning remembrance and protection.',
-        timestamp: 'Today, 07:00 AM',
-        type: 'azkar',
-        read: false,
-    },
-    {
-        id: 'notif_2',
-        title: 'Farz Prayers Check-in',
-        message: 'Remember to log your fulfilled prayers in the Daily Tracker.',
-        timestamp: 'Today, 01:15 PM',
-        type: 'prayer',
-        read: false,
-    },
-    {
-        id: 'notif_3',
-        title: 'Qaza Tracker Milestone',
-        message: 'Keep going! Consistently fulfilling 1-2 missed prayers daily builds your spiritual debt relief.',
-        timestamp: 'Yesterday, 06:30 PM',
-        type: 'reminder',
-        read: true,
-    },
-];
+// Clean empty notifications for fresh accounts (no mock/pre-seeded alerts)
+const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
 
 export async function setupNotificationChannel(): Promise<void> {
     if (Platform.OS === 'android') {
@@ -126,17 +102,9 @@ export async function loadNotifications(email?: string): Promise<NotificationIte
         if (raw) {
             return JSON.parse(raw);
         }
-        // Fallback to legacy key if available
-        const legacy = await AsyncStorage.getItem('user_notifications_list');
-        if (legacy) {
-            const parsed = JSON.parse(legacy);
-            await AsyncStorage.setItem(key, legacy).catch(() => {});
-            return parsed;
-        }
-        await AsyncStorage.setItem(key, JSON.stringify(INITIAL_NOTIFICATIONS)).catch(() => {});
-        return INITIAL_NOTIFICATIONS;
+        return [];
     } catch {
-        return INITIAL_NOTIFICATIONS;
+        return [];
     }
 }
 

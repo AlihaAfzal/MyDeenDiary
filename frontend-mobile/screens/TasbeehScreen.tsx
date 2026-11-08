@@ -286,15 +286,8 @@ export default function TasbeehScreen({ navigation }: any) {
     const handleDialTap = () => {
         const next = count + 1;
 
-        // Feedback triggers: Exactly 30ms when vibration is enabled; if off, no vibration
-        if (hapticsEnabled) {
-            try {
-                Vibration.vibrate(30);
-            } catch {}
-        }
-        if (soundEnabled) {
-            soundHapticService.playClick();
-        }
+        // Feedback triggers via configured preset (Wood bead sound / Soft tap / Haptic vibration)
+        soundHapticService.playTasbeehFeedback();
 
         // Numeric target completion check
         if (target !== null && target > 0 && next >= target && count < target) {
